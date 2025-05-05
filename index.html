@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>撈撈魚菜園</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #d0f0d0;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: url('background.jpg') no-repeat center center;
+      background-size: cover;
+    }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+const images = {
+  fish: "fish1.png",
+  trash: "trash1.png",
+  fertilizer: "fertilizer.png",
+  hook: "hook.png"
+};
+
+let hook = {
+  x: canvas.width / 2,
+  y: 100,
+  angle: Math.PI / 2,
+  length: 80,
+  maxLength: 400,
+  direction: 1,
+  angleSpeed: 0.02,
+  minAngle: 0,
+  maxAngle: Math.PI,
+  speed: 5,
+  isDropping: false,
+  moveLeft: false,
+  moveRight: false
+};
+
+let items = [];
+let score = 0;
+
+function createItems() {
+  for (let i = 0; i < 10; i++) {
+    const types = ["fish", "fertilizer", "trash"];
+    const type = types[Math.floor(Math.random() * types.length)];
+    items.push({
+      type,
+      x: Math.random() * (canvas.width - 60) + 30,
+      y: Math.random() * 250 + 300,
+      width: 40,
+      height: 40,
+      caught: false
+    });
+  }
+}
+
+createItems();
+
+const loadedImages = {};
+let loadedCount = 0;
+
+for (const key in images) {
+  const img = new Image();
+  img.src = images[key];
+  img.onload = () => {
+    loadedImages[key] = img;
+    loadedCount++;
+    if (loadedCount === Object.keys(images).length) {
+      requestAnimationFrame(gameLoop);
+    }
+  };
+}
+
+canvas.addEventListener("click", () => {
+  if (!hook.isDropping) {
+    hook.isDropping = true;
+  }
+});
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowLeft") hook.moveLeft = true;
+  if (e.key === "ArrowRight") hook.moveRight = true;
+});
+
+window.addEventListener("keyup", (e) => {
+  if (e.key === "ArrowLeft") hook.moveLeft = false;
+  if (e.key === "ArrowRight") hook.moveRight = false;
+});
+
+function gameLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!hook.isDropping) {
+    hook.angle += hook.angleSpeed * hook.direction;
+    if (hook.angle > hook.maxAngle || hook.angle < hook.minAngle) {
+      hook.direction *= -1;
+    }
+    if (hook.moveLeft) hook.x -= hook.speed;
+    if (hook.moveRight) hook.x += hook.speed;
+  }
+
+  const hookEndX = hook.x + Math.cos(hook.angle) * hook.length;
+  const hookEndY = hook.y + Math.sin(hook.angle) * hook.length;
+
+  if (hook.isDropping) {
+    hook.length += 5;
+    if (hook.length >= hook.maxLength) {
+      hook.length = hook.maxLength;
+    }
+
+    items.forEach(item => {
+      if (!item.caught && Math.abs(item.x - hookEndX) < 30 && Math.abs(item.y - hookEndY) < 30) {
+        item.caught = true;
+        score += item.type === "fish" ? 100 : item.type === "fertilizer" ? 50 : -50;
+        hook.isDropping = false;
+        hook.length = 80;
+      }
+    });
+
+    if (hook.length >= hook.maxLength) {
+      hook.isDropping = false;
+      hook.length = 80;
+    }
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(hook.x, hook.y);
+  ctx.lineTo(hookEndX, hookEndY);
+  ctx.strokeStyle = "#333";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.drawImage(loadedImages.hook, hookEndX - 30, hookEndY - 30, 60, 60);
+
+  items.forEach(item => {
+    if (!item.caught) {
+      ctx.drawImage(loadedImages[item.type], item.x - 20, item.y - 20, item.width, item.height);
+    }
+  });
+
+  ctx.fillStyle = "#000";
+  ctx.font = "20px Arial";
+  ctx.fillText("分數: " + score, 20, 30);
+
+  requestAnimationFrame(gameLoop);
+}
+</script>
+</body>
+</html>
